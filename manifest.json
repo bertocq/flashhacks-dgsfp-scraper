@@ -1,0 +1,22 @@
+{
+  "bot_id": "dgsfp-insurance-licences",
+  "title": "FINANCE LICENCES (INSURANCE) - GENERAL DIRECTORATE OF INSURANCE (SPAIN)",
+  "description": "List of all finance licences from the GENERAL DIRECTORATE OF INSURANCE (SPAIN)",
+  "language": "ruby",
+  "data_type": "primary data",
+  "identifying_fields": [
+    "number"
+  ],
+  "files": [
+    "scraper.rb"
+  ],
+  "frequency": "monthly",
+  "publisher": {
+    "name": "Direccion General de Seguros y Fondos de Pensiones",
+    "url": "http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/AseguradorasReaseguradoras.aspx",
+    "terms": "Open Government License",
+    "terms_url": "http://www.mineco.gob.es/portal/site/mineco/menuitem.b6a9121612a3362cafb0240e026041a0/?vgnextoid=53c9a5539d915310VgnVCM1000001d04140aRCRD"
+  },
+  "public_repo_url": "https://github.com/bertocq/flashhacks-dgsfp-scraper",
+  "tags": ["insurance", "financial", "licences"]
+}
