@@ -12,15 +12,15 @@ agent.user_agent_alias = 'Mac Safari'
 
 # Since the website uses ASP Net View State, we will make a first GET
 # request to obtain VIEWSTATE & VIEWSTATEGENERATOR values to use next time
-puts 'Running GET request...'
+Turbotlib.log('Running GET request...')
 doc = agent.get(URL).parser
 
 viewstate = doc.css('input[name="__VIEWSTATE"]').first['value']
-viewstategenerator = doc.css('input[name="__VIEWSTATEGENERATOR"]').first['value']
+viewstategen = doc.css('input[name="__VIEWSTATEGENERATOR"]').first['value']
 
 params = {}
 params['__VIEWSTATE'] = viewstate
-params['__VIEWSTATEGENERATOR'] = viewstategenerator
+params['__VIEWSTATEGENERATOR'] = viewstategen
 params['__EVENTARGUMENT'] = ''
 params['__EVENTTARGET'] = ''
 params['cboComparadores1'] = 'igual que'
@@ -44,7 +44,7 @@ agent.post(URL, params)
 
 params = {}
 params['__VIEWSTATE'] = viewstate
-params['__VIEWSTATEGENERATOR'] = viewstategenerator
+params['__VIEWSTATEGENERATOR'] = viewstategen
 params['__EVENTARGUMENT'] = ''
 params['__EVENTTARGET'] = 'btnExportar'
 params['cboComparadores1'] = 'igual que'
@@ -65,11 +65,11 @@ params['Chk_EEE_PaisOrg'] = 'on'
 agent.post(URL, params)
 
 # Finally get the list on the popup url
-doc = agent.get('http://www.dgsfp.mineco.es/RegistrosPublicos/DetalleGrid/Detalle_Grid.aspx?C1=AsegReaseg').parser
+SOURCE_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/DetalleGrid/Detalle_Grid.aspx?C1=AsegReaseg'
+doc = agent.get(SOURCE_URL).parser
 rows = doc.xpath('//table[@id="DataGrid1"]//tr[@bgcolor="WhiteSmoke"]')
-puts "Got #{rows.count} rows"
+Turbotlib.log("Got #{rows.count} rows")
 
-# TODO companys should be an array companys[company_id] = hash{}
 rows.collect do |row|
   datum = {}
   [
@@ -82,7 +82,10 @@ rows.collect do |row|
   ].each do |name, xpath|
     datum[name] = row.at_xpath(xpath).to_s.strip || nil
   end
-  puts datum
+  datum[:source_url] = SOURCE_URL # mandatory field
+  datum[:sample_date] = Time.now # mandatory field
+
+  puts JSON.dump(datum)
 end
 
 # Visit each company details
