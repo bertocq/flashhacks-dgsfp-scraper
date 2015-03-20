@@ -10,14 +10,14 @@ URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/A
 agent = Mechanize.new
 agent.user_agent_alias = 'Mac Safari'
 
-# Since the website uses ASP Net View State, we will make a first GET
-# request to obtain VIEWSTATE & VIEWSTATEGENERATOR values to use next time
+# Since the website uses ASP Net View State, we will make a first GET request
+# to obtain the values for VIEWSTATE & VIEWSTATEGENERATOR and reuse them
 Turbotlib.log('Running GET request...')
 doc = agent.get(URL).parser
-
 viewstate = doc.css('input[name="__VIEWSTATE"]').first['value']
 viewstategen = doc.css('input[name="__VIEWSTATEGENERATOR"]').first['value']
 
+# Default parameters used in each POST request
 params = {}
 params['__VIEWSTATE'] = viewstate
 params['__VIEWSTATEGENERATOR'] = viewstategen
@@ -37,32 +37,11 @@ params['CboRamos'] = 'Todos/as'
 params['cboPrestaciones'] = 'Todos/as'
 params['Chk_EEE_PaisOrg'] = 'on'
 
-params['CmdBusqueda'] = 'Buscar'
-
 # Do a search so next call will get all the results
-agent.post(URL, params)
-
-params = {}
-params['__VIEWSTATE'] = viewstate
-params['__VIEWSTATEGENERATOR'] = viewstategen
-params['__EVENTARGUMENT'] = ''
-params['__EVENTTARGET'] = 'btnExportar'
-params['cboComparadores1'] = 'igual que'
-params['TxtClave'] = ''
-params['cboComparadores2'] = 'igual que'
-params['txtNifCif'] = ''
-params['cboComparadores'] = 'que contenga'
-params['txtNombre'] = ''
-params['cboSituacion'] = 'Todos/as'
-params['cboAmbito'] = 'Todos/as'
-params['cboTipoEntidad'] = 'Todos/as'
-params['cboActividad'] = 'Todos/as'
-params['CboRamos'] = 'Todos/as'
-params['cboPrestaciones'] = 'Todos/as'
-params['Chk_EEE_PaisOrg'] = 'on'
+agent.post(URL, params.merge('CmdBusqueda' => 'Buscar'))
 
 # Ask for the export-all function
-agent.post(URL, params)
+agent.post(URL, params.merge('__EVENTTARGET' => 'btnExportar'))
 
 # Finally get the list on the popup url
 SOURCE_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/DetalleGrid/Detalle_Grid.aspx?C1=AsegReaseg'
@@ -81,24 +60,11 @@ rows.collect do |row|
     [:cancel_date, 'td[6]/font/text()']
   ].each do |name, xpath|
     datum[name] = row.at_xpath(xpath).to_s.strip || nil
+    # Visit each company details
+    # url = "http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/DetalleAsegReaseg.aspx?C1=#{company_id}&C2=False&C3=False&C4=False&C5=False"
+      # Then visit the details subsections
   end
   datum[:source_url] = SOURCE_URL # mandatory field
   datum[:sample_date] = Time.now # mandatory field
-
   puts JSON.dump(datum)
 end
-
-# Visit each company details
-# url = "http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/DetalleAsegReaseg.aspx?C1=#{company_id}&C2=False&C3=False&C4=False&C5=False"
-
-# doc.css('#DataGrid1 tr').each do |row|
-#   cols = row.css('td').map {|r| r.text }
-#   datum = {
-#     company_name: cols[0],
-#     company_number: cols[1],
-#     source_url: SOURCE_URL,     # mandatory field
-#     sample_date: Time.now       # mandatory field
-#   }
-#   # The important part of the Turbot specification is that your scraper outputs lines of JSON
-#   puts JSON.dump(datum)
-# end
