@@ -5,7 +5,7 @@
   "language": "ruby",
   "data_type": "primary data",
   "identifying_fields": [
-    "number"
+    "company_id"
   ],
   "files": [
     "scraper.rb"
