@@ -68,17 +68,45 @@ rows.collect do |row|
     
     # TODO: Scrap basic company data
 
-    # Ask for Executives list
-    agent.post(
-      detail_url,
+    # default params for details page requests
+    details_params = {
+      '__EVENTTARGET' => '',
+      '__EVENTARGUMENT' => '',
       '__VIEWSTATE' => doc.css('input[name="__VIEWSTATE"]').first['value'],
-      '__VIEWSTATEGENERATOR' => doc.css('input[name="__VIEWSTATEGENERATOR"]').first['value'],
-      'btnCar' => 'Altos Cargos'
-    )
+      '__VIEWSTATEGENERATOR' => doc.css('input[name="__VIEWSTATEGENERATOR"]').first['value']
+    }
 
-    # read executive list?
-    doc = agent.get(detail_url).parser
-    #puts doc
+    # Ask for Executives list
+    doc = agent.post(detail_url, details_params.merge('btnCar' => 'Altos Cargos'))
+    # TODO: Parse list from doc.content
+
+    # Ask for DE list
+    doc = agent.post(detail_url, details_params.merge('btnDE' => 'DE'))
+    # TODO: Parse list from doc.content
+
+    # Ask for Branch & Modality list
+    doc = agent.post(detail_url, details_params.merge('btnRamMod' => 'Ramos y Modalidades'))
+    # TODO: Parse list from doc.content
+
+    # Ask for Partners list
+    doc = agent.post(detail_url, details_params.merge('btnSoc' => 'Socios'))
+    # TODO: Parse list from doc.content
+
+    # Ask for LPS list
+    doc = agent.post(detail_url, details_params.merge('btnLPS' => 'LPS'))
+    # TODO: Parse list from doc.content
+
+    # Ask for SAC & Defender list
+    doc = agent.post(detail_url, details_params.merge('btnDefensor' => 'SAC y Defensor'))
+    # TODO: This one is tricky! onclick="windowOpen('C0001','ASEGURADORES+AGRUPADOS%2c+SOCIEDAD+ANONIMA+DE+SEGUROS+')"
+=begin
+    function windowOpen(valor,denom)
+    {
+      window.open('../defensor/frmDatosDefensor.aspx?op=&codigo=' + valor + '&nombre=' + denom + '','_blank','toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=no,resizable=no,width=550,height=320,top=200,left=200,alwaysraised=yes,z-lock=yes');
+    }
+=end
+
+    #throw :marlo
   end
   datum[:source_url] = SOURCE_URL # mandatory field
   datum[:sample_date] = Time.now # mandatory field
