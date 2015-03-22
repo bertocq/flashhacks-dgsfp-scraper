@@ -18,8 +18,7 @@ end
 
 def scrap_detail_attr(doc, name)
   doc.xpath("//span[@id=\"#{name}\"]//b/text()").to_s.strip
-end
-  
+end  
 
 FORM_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/AseguradorasReaseguradoras.aspx'
 SOURCE_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/DetalleGrid/Detalle_Grid.aspx?C1=AsegReaseg'
@@ -116,11 +115,6 @@ rows.collect do |row|
       [:position, 'td[3]/text()']
     ]
   )
-  #   # Ask for DE list.. EMPTY ALWAYS?
-  #   # doc = agent.post(detail_url, details_params.merge('btnDE' => 'DE'))
-  #   # TODO: Parse list from doc.content
-  #   # datum[:branch_offices] = {}
-  #   # puts JSON.dump(datum)
 
   # Ask for Branch & Modality list
   datum[:departments_and_modalities] = scrap_table(
@@ -133,30 +127,7 @@ rows.collect do |row|
     ]
   )
 
-  # =begin
-  #   # Ask for Representatives list
-  #   doc = agent.post(detail_url, details_params.merge('btnRep' => 'Representantes'))
-  #   # TODO: Parse list from doc.content
-  #   datum[:representatives] = {}
-  #
-  #   # Ask for Partners list
-  #   doc = agent.post(detail_url, details_params.merge('btnSoc' => 'Socios'))
-  #   # TODO: Parse list from doc.content
-  #   datum[:partners] = {}
-  #
-  #
-  #
-  #   # Ask for SAC & Defender list
-  #   doc = agent.post(detail_url, details_params.merge('btnDefensor' => 'SAC y Defensor'))
-  #   # TODO: This one is tricky! onclick="windowOpen('C0001','ASEGURADORES+AGRUPADOS%2c+SOCIEDAD+ANONIMA+DE+SEGUROS+')"
-  #   datum[:client_defensor] = {}
-  #   datum[:customer_attention] = {}
-  #   #     function windowOpen(valor,denom)
-  #   #     {
-  #   #       window.open('../defensor/frmDatosDefensor.aspx?op=&codigo=' + valor + '&nombre=' + denom + '','_blank','toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=no,resizable=no,width=550,height=320,top=200,left=200,alwaysraised=yes,z-lock=yes');
-  #   #     }
-  # =end  datum[:source_url] = SOURCE_URL # mandatory field
+  datum[:source_url] = SOURCE_URL # mandatory field
   datum[:sample_date] = Time.now # mandatory field
   puts JSON.dump(datum)
-  #throw :stop
 end
