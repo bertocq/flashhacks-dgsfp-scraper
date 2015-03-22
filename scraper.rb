@@ -30,7 +30,7 @@ params['cboComparadores2'] = 'igual que'
 params['txtNifCif'] = ''
 params['cboComparadores'] = 'que contenga'
 params['txtNombre'] = ''
-params['cboSituacion'] = '1' # 'Todos/as' will get all of the possible statuses, not just active
+params['cboSituacion'] = 'Todos/as' # 'Todos/as' will get all of the possible statuses, not just active
 params['cboAmbito'] = 'Todos/as'
 params['cboTipoEntidad'] = 'Todos/as'
 params['cboActividad'] = 'Todos/as'
@@ -61,53 +61,96 @@ rows.collect do |row|
     [:cancel_date, 'td[6]/font/text()']
   ].each do |name, xpath|
     datum[name] = row.at_xpath(xpath).to_s.strip || nil
-    
-    detail_url = "http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/DetalleAsegReaseg.aspx?C1=#{datum[:company_id]}&C2=False&C3=False&C4=False&C5=False"
-    # GET request to capture new viewstate and viewstategenerator values, and basic data
-    doc = agent.get(detail_url).parser
-    
-    # TODO: Scrap basic company data
-
-    # default params for details page requests
-    details_params = {
-      '__EVENTTARGET' => '',
-      '__EVENTARGUMENT' => '',
-      '__VIEWSTATE' => doc.css('input[name="__VIEWSTATE"]').first['value'],
-      '__VIEWSTATEGENERATOR' => doc.css('input[name="__VIEWSTATEGENERATOR"]').first['value']
-    }
-
-    # Ask for Executives list
-    doc = agent.post(detail_url, details_params.merge('btnCar' => 'Altos Cargos'))
-    # TODO: Parse list from doc.content
-
-    # Ask for DE list
-    doc = agent.post(detail_url, details_params.merge('btnDE' => 'DE'))
-    # TODO: Parse list from doc.content
-
-    # Ask for Branch & Modality list
-    doc = agent.post(detail_url, details_params.merge('btnRamMod' => 'Ramos y Modalidades'))
-    # TODO: Parse list from doc.content
-
-    # Ask for Partners list
-    doc = agent.post(detail_url, details_params.merge('btnSoc' => 'Socios'))
-    # TODO: Parse list from doc.content
-
-    # Ask for LPS list
-    doc = agent.post(detail_url, details_params.merge('btnLPS' => 'LPS'))
-    # TODO: Parse list from doc.content
-
-    # Ask for SAC & Defender list
-    doc = agent.post(detail_url, details_params.merge('btnDefensor' => 'SAC y Defensor'))
-    # TODO: This one is tricky! onclick="windowOpen('C0001','ASEGURADORES+AGRUPADOS%2c+SOCIEDAD+ANONIMA+DE+SEGUROS+')"
-=begin
-    function windowOpen(valor,denom)
-    {
-      window.open('../defensor/frmDatosDefensor.aspx?op=&codigo=' + valor + '&nombre=' + denom + '','_blank','toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=no,resizable=no,width=550,height=320,top=200,left=200,alwaysraised=yes,z-lock=yes');
-    }
-=end
-
-    #throw :marlo
   end
+
+  detail_url = "http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/DetalleAsegReaseg.aspx?C1=#{datum[:company_id]}&C2=False&C3=False&C4=False&C5=False"
+  # GET request to capture new viewstate and viewstategenerator values, and basic data
+  doc = agent.get(detail_url).parser
+
+  # TODO: Scrap basic company data
+  datum[:management_id] = doc.xpath('//span[@id="lblClaveGes"]//b/text()').to_s.strip
+  datum[:denomination] = doc.xpath('//span[@id="lblDen"]/text()').to_s.strip
+  datum[:cif_2] = doc.xpath('//span[@id="lblCif"]//b/text()').to_s.strip
+  datum[:status_2] = doc.xpath('//span[@id="lblSit"]//b/text()').to_s.strip
+  datum[:address] = doc.xpath('//span[@id="lblDir"]//b/text()').to_s.strip
+  datum[:postal_code] = doc.xpath('//span[@id="lblcodPos"]//b/text()').to_s.strip
+  datum[:province] = doc.xpath('//span[@id="lblPro"]//b/text()').to_s.strip
+  datum[:region] = doc.xpath('//span[@id="lblCom"]//b/text()').to_s.strip
+  datum[:country] = doc.xpath('//span[@id="lblPaisOrg"]//b/text()').to_s.strip
+  datum[:telephone_2] = doc.xpath('//span[@id="lblTel"]//b/text()').to_s.strip
+  datum[:fax] = doc.xpath('//span[@id="lblFax"]//b/text()').to_s.strip
+  datum[:ambit] = doc.xpath('//span[@id="lblAmb"]//b/text()').to_s.strip
+  datum[:website] = doc.xpath('//span[@id="lblWeb"]//b/text()').to_s.strip
+  datum[:email] = doc.xpath('//span[@id="lblMail"]//b/text()').to_s.strip
+  datum[:authorization_date] = doc.xpath('//span[@id="lblFecAut"]//b/text()').to_s.strip
+  datum[:subscribed_capital] = doc.xpath('//span[@id="lblCapSus"]//b/text()').to_s.strip
+  datum[:disbursed] = doc.xpath('//span[@id="lblCapDes"]//b/text()').to_s.strip
+  puts JSON.dump(datum)
+  throw :marlo
+
+  # default params for details page requests
+  details_params = {
+    '__EVENTTARGET' => '',
+    '__EVENTARGUMENT' => '',
+    '__VIEWSTATE' => doc.css('input[name="__VIEWSTATE"]').first['value'],
+    '__VIEWSTATEGENERATOR' => doc.css('input[name="__VIEWSTATEGENERATOR"]').first['value']
+  }
+
+  # Ask for Executives list
+  response = agent.post(detail_url, details_params.merge('btnCar' => 'Altos Cargos'))
+  # TODO: Parse list from doc.content
+  executives = {}
+  doc = Nokogiri::HTML(response.content.gsub(/&nbsp;/i, ''))
+  executive_list = doc.xpath('//table[@id="DataGrid1"]//tr[@class="ItemStilo"]')
+  executive_list.collect do |executive|
+    [
+      [:accreditation, 'td[1]/text()'],
+      [:name, 'td[2]/text()'],
+      [:position, 'td[3]/text()']
+    ].each do |exec_name, exec_xpath|
+      executives[exec_name] = executive.at_xpath(exec_xpath).to_s.strip
+    end
+  end
+  datum[:executives] = executives
+
+=begin
+  # Ask for DE list
+  doc = agent.post(detail_url, details_params.merge('btnDE' => 'DE'))
+  # TODO: Parse list from doc.content
+  datum[:branch_offices] = {}
+  puts JSON.dump(datum)
+  throw :marlo
+
+  # Ask for Branch & Modality list
+  doc = agent.post(detail_url, details_params.merge('btnRamMod' => 'Ramos y Modalidades'))
+  # TODO: Parse list from doc.content
+  datum[:departments_and_modalities] = {}
+
+  # Ask for Representatives list
+  doc = agent.post(detail_url, details_params.merge('btnRep' => 'Representantes'))
+  # TODO: Parse list from doc.content
+  datum[:representatives] = {}
+
+  # Ask for Partners list
+  doc = agent.post(detail_url, details_params.merge('btnSoc' => 'Socios'))
+  # TODO: Parse list from doc.content
+  datum[:partners] = {}
+
+  # Ask for LPS list
+  doc = agent.post(detail_url, details_params.merge('btnLPS' => 'LPS'))
+  # TODO: Parse list from doc.content
+  datum[:free_provision_services] = {}
+
+  # Ask for SAC & Defender list
+  doc = agent.post(detail_url, details_params.merge('btnDefensor' => 'SAC y Defensor'))
+  # TODO: This one is tricky! onclick="windowOpen('C0001','ASEGURADORES+AGRUPADOS%2c+SOCIEDAD+ANONIMA+DE+SEGUROS+')"
+  datum[:client_defensor] = {}
+  datum[:customer_attention] = {}
+  #     function windowOpen(valor,denom)
+  #     {
+  #       window.open('../defensor/frmDatosDefensor.aspx?op=&codigo=' + valor + '&nombre=' + denom + '','_blank','toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=no,resizable=no,width=550,height=320,top=200,left=200,alwaysraised=yes,z-lock=yes');
+  #     }
+=end    
   datum[:source_url] = SOURCE_URL # mandatory field
   datum[:sample_date] = Time.now # mandatory field
   puts JSON.dump(datum)
