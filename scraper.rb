@@ -54,7 +54,7 @@ rows.collect do |row|
   datum = {}
   [
     [:company_id, 'td[1]/font/text()'],
-    [:entity_name, 'td[2]/font/text()'],
+    [:name, 'td[2]/font/text()'],
     [:cif, 'td[3]/font/text()'],
     [:telephone, 'td[4]/font/text()'],
     [:status, 'td[5]/font/text()'],
@@ -67,17 +67,13 @@ rows.collect do |row|
   # GET request to capture new viewstate and viewstategenerator values, and basic data
   doc = agent.get(detail_url).parser
 
-  # TODO: Scrap basic company data
+  # Scrap basic company data
   datum[:management_id] = doc.xpath('//span[@id="lblClaveGes"]//b/text()').to_s.strip
-  datum[:denomination] = doc.xpath('//span[@id="lblDen"]/text()').to_s.strip
-  datum[:cif_2] = doc.xpath('//span[@id="lblCif"]//b/text()').to_s.strip
-  datum[:status_2] = doc.xpath('//span[@id="lblSit"]//b/text()').to_s.strip
   datum[:address] = doc.xpath('//span[@id="lblDir"]//b/text()').to_s.strip
   datum[:postal_code] = doc.xpath('//span[@id="lblcodPos"]//b/text()').to_s.strip
   datum[:province] = doc.xpath('//span[@id="lblPro"]//b/text()').to_s.strip
   datum[:region] = doc.xpath('//span[@id="lblCom"]//b/text()').to_s.strip
   datum[:country] = doc.xpath('//span[@id="lblPaisOrg"]//b/text()').to_s.strip
-  datum[:telephone_2] = doc.xpath('//span[@id="lblTel"]//b/text()').to_s.strip
   datum[:fax] = doc.xpath('//span[@id="lblFax"]//b/text()').to_s.strip
   datum[:ambit] = doc.xpath('//span[@id="lblAmb"]//b/text()').to_s.strip
   datum[:website] = doc.xpath('//span[@id="lblWeb"]//b/text()').to_s.strip
@@ -85,10 +81,8 @@ rows.collect do |row|
   datum[:authorization_date] = doc.xpath('//span[@id="lblFecAut"]//b/text()').to_s.strip
   datum[:subscribed_capital] = doc.xpath('//span[@id="lblCapSus"]//b/text()').to_s.strip
   datum[:disbursed] = doc.xpath('//span[@id="lblCapDes"]//b/text()').to_s.strip
-  puts JSON.dump(datum)
-  throw :marlo
 
-  # default params for details page requests
+  # default params for details page requests, again capture viewstate and viewstategenerator
   details_params = {
     '__EVENTTARGET' => '',
     '__EVENTARGUMENT' => '',
@@ -98,7 +92,6 @@ rows.collect do |row|
 
   # Ask for Executives list
   response = agent.post(detail_url, details_params.merge('btnCar' => 'Altos Cargos'))
-  # TODO: Parse list from doc.content
   executives = {}
   doc = Nokogiri::HTML(response.content.gsub(/&nbsp;/i, ''))
   executive_list = doc.xpath('//table[@id="DataGrid1"]//tr[@class="ItemStilo"]')
@@ -107,25 +100,37 @@ rows.collect do |row|
       [:accreditation, 'td[1]/text()'],
       [:name, 'td[2]/text()'],
       [:position, 'td[3]/text()']
-    ].each do |exec_name, exec_xpath|
-      executives[exec_name] = executive.at_xpath(exec_xpath).to_s.strip
+    ].each do |name, xpath|
+      executives[name] = executive.at_xpath(xpath).to_s.strip
     end
   end
   datum[:executives] = executives
 
-=begin
-  # Ask for DE list
-  doc = agent.post(detail_url, details_params.merge('btnDE' => 'DE'))
+  # Ask for DE list.. EMPTY ALWAYS?
+  # doc = agent.post(detail_url, details_params.merge('btnDE' => 'DE'))
   # TODO: Parse list from doc.content
-  datum[:branch_offices] = {}
-  puts JSON.dump(datum)
-  throw :marlo
+  # datum[:branch_offices] = {}
+  # puts JSON.dump(datum)
 
   # Ask for Branch & Modality list
-  doc = agent.post(detail_url, details_params.merge('btnRamMod' => 'Ramos y Modalidades'))
-  # TODO: Parse list from doc.content
-  datum[:departments_and_modalities] = {}
+  response = agent.post(detail_url, details_params.merge('btnRamMod' => 'Ramos y Modalidades'))
+  departments_and_modalities = {}
+  doc = Nokogiri::HTML(response.content.gsub(/&nbsp;/i, ''))
+  dep_mod_list = doc.xpath('//table[@id="DataGrid1"]//tr[@class="ItemStilo"]')
+  dep_mod_list.collect do |dep_mod|
+    [
+      [:number, 'td[1]/text()'],
+      [:branch, 'td[2]/text()'],
+      [:modality, 'td[3]/text()'],
+      [:creation_date, 'td[4]/text()'],
+      [:status, 'td[5]/text()']
+    ].each do |name, xpath|
+      departments_and_modalities[name] = dep_mod.at_xpath(xpath).to_s.strip
+    end
+  end
+  datum[:departments_and_modalities] = departments_and_modalities
 
+=begin
   # Ask for Representatives list
   doc = agent.post(detail_url, details_params.merge('btnRep' => 'Representantes'))
   # TODO: Parse list from doc.content
@@ -136,10 +141,7 @@ rows.collect do |row|
   # TODO: Parse list from doc.content
   datum[:partners] = {}
 
-  # Ask for LPS list
-  doc = agent.post(detail_url, details_params.merge('btnLPS' => 'LPS'))
-  # TODO: Parse list from doc.content
-  datum[:free_provision_services] = {}
+ 
 
   # Ask for SAC & Defender list
   doc = agent.post(detail_url, details_params.merge('btnDefensor' => 'SAC y Defensor'))
@@ -154,4 +156,5 @@ rows.collect do |row|
   datum[:source_url] = SOURCE_URL # mandatory field
   datum[:sample_date] = Time.now # mandatory field
   puts JSON.dump(datum)
+  throw :stop
 end
