@@ -79,7 +79,7 @@ rows.collect do |row|
     [:cif, 'td[3]/font/text()'],
     [:telephone, 'td[4]/font/text()'],
     [:status, 'td[5]/font/text()'],
-    [:cancel_date, 'td[6]/font/text()']
+    [:cancelation_date, 'td[6]/font/text()']
   ].each do |name, xpath|
     datum[name] = row.at_xpath(xpath).to_s.strip || nil
   end
@@ -91,6 +91,7 @@ rows.collect do |row|
 
   # Scrap basic company data
   datum[:management_id] = scrap_detail_attr(doc, 'lblClaveGes')
+  datum[:cancelation_reason] = scrap_detail_attr(doc, 'lblMotivoCancelacion')
   datum[:address] = scrap_detail_attr(doc, 'lblDir')
   datum[:postal_code] = scrap_detail_attr(doc, 'lblcodPos')
   datum[:province] = scrap_detail_attr(doc, 'lblPro')
@@ -148,7 +149,7 @@ rows.collect do |row|
     ]
   )
 
-  #   # Ask for Representatives list
+  # Ask for Representatives list
   datum[:representatives] = scrap_table(
     agent.post(detail_url, details_params.merge('btnRep' => 'Representantes')),
     [
@@ -157,7 +158,7 @@ rows.collect do |row|
     ]
   )
 
-  # Ask for SAC & Defender list
+  # Ask for SAC & Defender popup
   doc = agent.get(CUSTOMER_URL + datum[:company_id]).parser
 
   customer_attention = {}
@@ -176,7 +177,7 @@ rows.collect do |row|
   customer_attention[:web] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblweb')
   datum[:customer_attention] = customer_attention
 
-  agent.post(CUSTOMER_URL + datum[:company_id], params.merge('btnDefensor' => 'SAC y Defensor'))
+  agent.post(detail_url, params.merge('btnDefensor' => 'SAC y Defensor'))
 
   # Post to get the second tab of the popup
   response = agent.post(
@@ -188,21 +189,22 @@ rows.collect do |row|
     '__VIEWSTATEGENERATOR' => doc.css('input[name="__VIEWSTATEGENERATOR"]').first['value']
   )
 
+  # Parse Client Defensor values from second tab
   doc = Nokogiri::HTML(response.content.gsub(/&nbsp;/i, ''))
   client_defensor = {}
-  client_defensor[:name] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblnombre')
-  client_defensor[:address] = scrap_defender_attr(doc, 'Wucdatosdefensor1_Lbldireccion')
-  client_defensor[:post_office_box] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblapto')
-  client_defensor[:country] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblPais')
-  client_defensor[:postal_code] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblCodigoPostal')
-  client_defensor[:province] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblProvincia')
-  client_defensor[:municipality] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblMunicipio')
-  client_defensor[:town] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblPoblacion')
-  client_defensor[:telephone] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblTelefono')
-  client_defensor[:fax] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblFax')
-  client_defensor[:mobile_phone] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblMovil')
-  client_defensor[:email] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblMail')
-  client_defensor[:web] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblweb')
+  client_defensor[:name] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblnombre')
+  client_defensor[:address] = scrap_defender_attr(doc, 'WUCDatosDefensor1_Lbldireccion')
+  client_defensor[:post_office_box] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblapto')
+  client_defensor[:country] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblPais')
+  client_defensor[:postal_code] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblCodigoPostal')
+  client_defensor[:province] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblProvincia')
+  client_defensor[:municipality] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblMunicipio')
+  client_defensor[:town] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblPoblacion')
+  client_defensor[:telephone] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblTelefono')
+  client_defensor[:fax] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblFax')
+  client_defensor[:mobile_phone] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblMovil')
+  client_defensor[:email] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblMail')
+  client_defensor[:web] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblweb')
   datum[:client_defensor] = client_defensor
 
   datum[:source_url] = SOURCE_URL # mandatory field
