@@ -6,6 +6,7 @@ require 'mechanize'
 
 def scrap_table(response, table_columns)
   doc = Nokogiri::HTML(response.content.gsub(/&nbsp;/i, ''))
+  doc.encoding = 'iso-8859-1'
   list = doc.xpath('//table[@id="DataGrid1"]//tr[@class="ItemStilo"]')
   list.map do |list_item|
     item = {}
@@ -28,6 +29,7 @@ FORM_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReasegurado
 SOURCE_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/DetalleGrid/Detalle_Grid.aspx?C1=AsegReaseg'
 CUSTOMER_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/defensor/frmDatosDefensor.aspx?op=&codigo='
 
+#Mechanize::Util::CODE_DIC[:SJIS] = "utf-8"
 Turbotlib.log('Starting run...') # optional debug logging
 agent = Mechanize.new
 agent.user_agent_alias = 'Mac Safari'
@@ -67,6 +69,7 @@ agent.post(FORM_URL, params.merge('__EVENTTARGET' => 'btnExportar'))
 
 # Finally get the list on the popup url
 doc = agent.get(SOURCE_URL).parser
+doc.encoding = 'iso-8859-1'
 rows = doc.xpath('//table[@id="DataGrid1"]//tr[@bgcolor="WhiteSmoke"]')
 Turbotlib.log("Got #{rows.count} rows")
 
@@ -88,6 +91,7 @@ rows.collect do |row|
 
   # GET request to capture new viewstate and viewstategenerator values, and basic data
   doc = agent.get(detail_url).parser
+  doc.encoding = 'iso-8859-1'
 
   # Scrap basic company data
   datum[:management_id] = scrap_detail_attr(doc, 'lblClaveGes')
@@ -160,6 +164,7 @@ rows.collect do |row|
 
   # Ask for SAC & Defender popup
   doc = agent.get(CUSTOMER_URL + datum[:company_id]).parser
+  doc.encoding = 'iso-8859-1'
 
   customer_attention = {}
   customer_attention[:name] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblnombre')
@@ -191,6 +196,8 @@ rows.collect do |row|
 
   # Parse Client Defensor values from second tab
   doc = Nokogiri::HTML(response.content.gsub(/&nbsp;/i, ''))
+  doc.encoding = 'iso-8859-1'
+
   client_defensor = {}
   client_defensor[:name] = scrap_defender_attr(doc, 'WUCDatosDefensor1_lblnombre')
   client_defensor[:address] = scrap_defender_attr(doc, 'WUCDatosDefensor1_Lbldireccion')
