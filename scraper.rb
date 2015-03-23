@@ -18,10 +18,15 @@ end
 
 def scrap_detail_attr(doc, name)
   doc.xpath("//span[@id=\"#{name}\"]//b/text()").to_s.strip
-end  
+end
+
+def scrap_defender_attr(doc, name)
+  doc.xpath("//span[@id=\"#{name}\"]//font/text()").to_s.strip
+end
 
 FORM_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/AseguradorasReaseguradoras.aspx'
 SOURCE_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/DetalleGrid/Detalle_Grid.aspx?C1=AsegReaseg'
+CUSTOMER_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/defensor/frmDatosDefensor.aspx?op=&codigo='
 
 Turbotlib.log('Starting run...') # optional debug logging
 agent = Mechanize.new
@@ -46,7 +51,7 @@ params['cboComparadores2'] = 'igual que'
 params['txtNifCif'] = ''
 params['cboComparadores'] = 'que contenga'
 params['txtNombre'] = ''
-params['cboSituacion'] = 'Todos/as' # 'Todos/as' will get all of the possible statuses, not just active
+params['cboSituacion'] = 'Todos/as'
 params['cboAmbito'] = 'Todos/as'
 params['cboTipoEntidad'] = 'Todos/as'
 params['cboActividad'] = 'Todos/as'
@@ -80,6 +85,7 @@ rows.collect do |row|
   end
 
   detail_url = "http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/DetalleAsegReaseg.aspx?C1=#{datum[:company_id]}&C2=False&C3=False&C4=False&C5=False"
+
   # GET request to capture new viewstate and viewstategenerator values, and basic data
   doc = agent.get(detail_url).parser
 
@@ -116,6 +122,12 @@ rows.collect do |row|
     ]
   )
 
+  #   # Ask for DE list.. EMPTY ALWAYS?
+  #   # doc = agent.post(detail_url, details_params.merge('btnDE' => 'DE'))
+  #   # TODO: Parse list from doc.content
+  #   # datum[:branch_offices] = {}
+  #   # puts JSON.dump(datum)
+
   # Ask for Branch & Modality list
   datum[:departments_and_modalities] = scrap_table(
     agent.post(detail_url, details_params.merge('btnRamMod' => 'Ramos y Modalidades')),
@@ -126,6 +138,72 @@ rows.collect do |row|
       [:status, 'td[5]/text()']
     ]
   )
+
+  #   # Ask for Partners list
+  datum[:partners] = scrap_table(
+    agent.post(detail_url, details_params.merge('btnSoc' => 'Socios')),
+    [
+      [:accreditation, 'td[1]/text()'],
+      [:name, 'td[2]/text()']
+    ]
+  )
+
+  #   # Ask for Representatives list
+  datum[:representatives] = scrap_table(
+    agent.post(detail_url, details_params.merge('btnRep' => 'Representantes')),
+    [
+      [:accreditation, 'td[1]/text()'],
+      [:name, 'td[2]/text()']
+    ]
+  )
+
+  # Ask for SAC & Defender list
+  doc = agent.get(CUSTOMER_URL + datum[:company_id]).parser
+
+  customer_attention = {}
+  customer_attention[:name] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblnombre')
+  customer_attention[:address] = scrap_defender_attr(doc, 'Wucdatosdefensor2_Lbldireccion')
+  customer_attention[:post_office_box] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblapto')
+  customer_attention[:country] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblPais')
+  customer_attention[:postal_code] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblCodigoPostal')
+  customer_attention[:province] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblProvincia')
+  customer_attention[:municipality] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblMunicipio')
+  customer_attention[:town] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblPoblacion')
+  customer_attention[:telephone] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblTelefono')
+  customer_attention[:fax] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblFax')
+  customer_attention[:mobile_phone] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblMovil')
+  customer_attention[:email] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblMail')
+  customer_attention[:web] = scrap_defender_attr(doc, 'Wucdatosdefensor2_lblweb')
+  datum[:customer_attention] = customer_attention
+
+  agent.post(CUSTOMER_URL + datum[:company_id], params.merge('btnDefensor' => 'SAC y Defensor'))
+
+  # Post to get the second tab of the popup
+  response = agent.post(
+    CUSTOMER_URL + datum[:company_id],
+    '__tstPestanas_State__' => '1',
+    '__EVENTTARGET' => 'tstPestanas',
+    '__EVENTARGUMENT' => '1',
+    '__VIEWSTATE' => doc.css('input[name="__VIEWSTATE"]').first['value'],
+    '__VIEWSTATEGENERATOR' => doc.css('input[name="__VIEWSTATEGENERATOR"]').first['value']
+  )
+
+  doc = Nokogiri::HTML(response.content.gsub(/&nbsp;/i, ''))
+  client_defensor = {}
+  client_defensor[:name] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblnombre')
+  client_defensor[:address] = scrap_defender_attr(doc, 'Wucdatosdefensor1_Lbldireccion')
+  client_defensor[:post_office_box] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblapto')
+  client_defensor[:country] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblPais')
+  client_defensor[:postal_code] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblCodigoPostal')
+  client_defensor[:province] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblProvincia')
+  client_defensor[:municipality] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblMunicipio')
+  client_defensor[:town] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblPoblacion')
+  client_defensor[:telephone] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblTelefono')
+  client_defensor[:fax] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblFax')
+  client_defensor[:mobile_phone] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblMovil')
+  client_defensor[:email] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblMail')
+  client_defensor[:web] = scrap_defender_attr(doc, 'Wucdatosdefensor1_lblweb')
+  datum[:client_defensor] = client_defensor
 
   datum[:source_url] = SOURCE_URL # mandatory field
   datum[:sample_date] = Time.now # mandatory field
