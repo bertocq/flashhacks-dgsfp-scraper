@@ -73,6 +73,7 @@ doc.encoding = 'iso-8859-1'
 rows = doc.xpath('//table[@id="DataGrid1"]//tr[@bgcolor="WhiteSmoke"]')
 Turbotlib.log("Got #{rows.count} rows")
 
+company_id_list = []
 # For each company get data from the export list
 rows.collect do |row|
   datum = {}
@@ -86,7 +87,14 @@ rows.collect do |row|
   ].each do |name, xpath|
     datum[name] = row.at_xpath(xpath).to_s.strip || nil
   end
-
+  
+  # Check for duplicated records by company_id value (crazy but they exist)
+  if company_id_list.include? datum[:company_id]
+    next
+  else
+    company_id_list << datum[:company_id]
+  end
+  
   detail_url = "http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/DetalleAsegReaseg.aspx?C1=#{datum[:company_id]}&C2=False&C3=False&C4=False&C5=False"
 
   # GET request to capture new viewstate and viewstategenerator values, and basic data
@@ -108,7 +116,6 @@ rows.collect do |row|
   datum[:authorization_date] = scrap_detail_attr(doc, 'lblFecAut')
   datum[:subscribed_capital] = scrap_detail_attr(doc, 'lblCapSus')
   datum[:disbursed] = scrap_detail_attr(doc, 'lblCapDes')
-
   # default params for details page requests, again capture viewstate and viewstategenerator
   details_params = {
     '__EVENTTARGET' => '',
@@ -195,7 +202,8 @@ rows.collect do |row|
   )
 
   # Parse Client Defensor values from second tab
-  doc = Nokogiri::HTML(response.content.gsub(/&nbsp;/i, ''))
+  content = response.content.encode('UTF-8', :invalid => :replace, :undef => :replace)
+  doc = Nokogiri::HTML(content)
   doc.encoding = 'iso-8859-1'
 
   client_defensor = {}
