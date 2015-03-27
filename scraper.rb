@@ -3,6 +3,7 @@
 require 'json'
 require 'turbotlib'
 require 'mechanize'
+require 'date'
 
 def scrap_table(response, table_columns)
   doc = Nokogiri::HTML(response.content.gsub(/&nbsp;/i, ''))
@@ -10,8 +11,10 @@ def scrap_table(response, table_columns)
   list = doc.xpath('//table[@id="DataGrid1"]//tr[@class="ItemStilo"]')
   list.map do |list_item|
     item = {}
-    table_columns.each do |name, xpath|
+    table_columns.each do |columns|
+      name, xpath, filter = columns
       item[name] = list_item.at_xpath(xpath).to_s.strip
+      item[name] = filter.call(item[name]) if filter
     end
     item
   end
@@ -23,6 +26,14 @@ end
 
 def scrap_defender_attr(doc, name)
   doc.xpath("//span[@id=\"#{name}\"]//font/text()").to_s.strip
+end
+
+parse_date = ->(date) do
+  begin
+    Date.parse(date).to_s
+  rescue ArgumentError => ex
+    nil
+  end
 end
 
 FORM_URL = 'http://www.dgsfp.mineco.es/RegistrosPublicos/AseguradorasReaseguradoras/AseguradorasReaseguradoras.aspx'
@@ -83,9 +94,11 @@ rows.collect do |row|
     [:cif, 'td[3]/font/text()'],
     [:telephone, 'td[4]/font/text()'],
     [:status, 'td[5]/font/text()'],
-    [:cancelation_date, 'td[6]/font/text()']
-  ].each do |name, xpath|
+    [:cancelation_date, 'td[6]/font/text()', parse_date]
+  ].each do |columns|
+    name, xpath, filter = columns
     datum[name] = row.at_xpath(xpath).to_s.strip || nil
+    datum[name] = filter.call(datum[name]) if filter
   end
   
   # Check for duplicated records by company_id value (crazy but they exist)
@@ -113,7 +126,7 @@ rows.collect do |row|
   datum[:ambit] = scrap_detail_attr(doc, 'lblAmb')
   datum[:website] = scrap_detail_attr(doc, 'lblWeb')
   datum[:email] = scrap_detail_attr(doc, 'lblMail')
-  datum[:authorization_date] = scrap_detail_attr(doc, 'lblFecAut')
+  datum[:authorization_date] = parse_date.call(scrap_detail_attr(doc, 'lblFecAut'))
   datum[:subscribed_capital] = scrap_detail_attr(doc, 'lblCapSus')
   datum[:disbursed] = scrap_detail_attr(doc, 'lblCapDes')
   # default params for details page requests, again capture viewstate and viewstategenerator
@@ -146,7 +159,7 @@ rows.collect do |row|
     [
       [:branch, 'td[2]/text()'],
       [:modality, 'td[3]/text()'],
-      [:creation_date, 'td[4]/text()'],
+      [:creation_date, 'td[4]/text()', parse_date],
       [:status, 'td[5]/text()']
     ]
   )
